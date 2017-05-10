@@ -256,20 +256,21 @@ function* findBestTrade(db_store, station1, station2, options, num_jumps) {
 function sampleHop_getNextStation(systems, jumps, forceTargetBag, forceTargetStation) {
 	if (forceTargetBag) {
 		const systems2 = Object.create(null);
+		let anySystemsFound = false;
 		for (const target_id of forceTargetBag.values()) {
 			if (typeof systems[target_id] !== 'undefined') systems2[target_id] = systems[target_id];
+			anySystemsFound = true;
 		}
+		if (!anySystemsFound) return null;
 		systems = systems2;
 	}
 	
 	if (forceTargetStation) {
 		for (const key in systems) {
-			if (typeof systems[key].stations[forceTargetStation] !== 'undefined') {
-				return systems[key].stations[forceTargetStation];
+			if (typeof systems[key].stations[forceTargetStation.id] !== 'undefined') {
+				return systems[key].stations[forceTargetStation.id];
 			}
 		}
-		console.log("target station "+forceTargetStation+" not found in systems "+Object.keys(systems).join(", "));
-		throw new Error("??");
 		return null;
 	} else {
 		const system_keys = Object.keys(systems);
@@ -336,7 +337,7 @@ function* sample(db_store, options) {
 	let station = startStation;
 	for (let i = 0; i < options.hops; i++) {
 		let overrideTarget;
-		if (endStation != null && i == options.hops - 1) overrideTarget = endStation.id;
+		if (endStation != null && i == options.hops - 1) overrideTarget = endStation;
 		const hopsFromEnd = options.hops - 1 - i;
 		const jumpsFromEnd = hopsFromEnd * options.jumpsPer;
 		let overrideBag = null;
@@ -365,7 +366,7 @@ function* mutate(db_store, options, route) {
 	let trade1 = yield* sampleHop(db_store, trades[redo_index].from, options, jumps.bags[options.jumpsPer]);
 	if (!trade1) return null; // no trades found
 	
-	let trade2 = yield* sampleHop(db_store, trade1.to, options, null, trades[redo_index+1].to.id);
+	let trade2 = yield* sampleHop(db_store, trade1.to, options, null, trades[redo_index+1].to);
 	if (!trade2) return null; // no trades found
 	
 	trades[redo_index] = trade1;
