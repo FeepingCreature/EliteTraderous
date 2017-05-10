@@ -17,6 +17,7 @@
 		"timeInHyperspace": 15,
 		"timeBetweenJumps": 35,
 		"timeToLand": 60,
+		"timeToLandOnPlanet": 120,
 		"timeInStation": 50,
 		"timePerResourceTrade": 10,
 		"timeToLeave": 60

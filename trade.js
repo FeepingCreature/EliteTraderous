@@ -166,7 +166,8 @@ function estimateTiming(trade) {
 	let distance_to_star = trade.to.distance_to_star;
 	if (distance_to_star == null) distance_to_star = 100;
 	res += 30 + ((Math.log(distance_to_star) - 1) / 5) * 100 + 0.002 * distance_to_star; // heuristic
-	res += timings.timeToLand; // land on station
+	if (trade.to.is_planetary) res += timings.timeToLandOnPlanet; // land on planet
+	else res += timings.timeToLand; // land on station
 	res += timings.timeInStation; // bring up menus, watch animations
 	res += timings.timePerResourceTrade * trade.num_trades; // sell
 	return res;
