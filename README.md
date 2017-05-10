@@ -5,16 +5,18 @@ Trade Route Calculator for Elite Dangerous, in the style of TradeDangerous, but 
 Instead of exhaustively searching all possible routes, as TradeDangerous does, EliteTraderous creates trade routes at random,
 then keeps the best ones. This allows it to return acceptable results more quickly, but the route you get may not be the best one.
 
+Written in Node.js; requires a PostgreSQL server for system and trade data.
+
 ## Installation
 
 1. Install Node.js and make sure you have it in your path by opening a command line (`cmd.exe`), then running `node -v`
 2. Install the required packages by running `npm install` in the EliteTraderous folder
 3. Install PostgreSQL and create a database for the program
-3.1. Configure your database's settings in `config.json`
-3.2. Initialize the program's tables by running `node create_db.js`
-3.3. Import the current system and market data from eddb.io
-3.3.1. Run `node fetch.js` in folder eddb
-3.3.2. Import the files by running `node import_eddb.js`
+   * Configure your database's settings in `config.json`
+4. Initialize the program's tables by running `node create_db.js`
+5. Import the current system and market data from eddb.io
+   * Run `node fetch.js` in folder eddb to download the eddb.io dumps
+   * Import the dumps by running `node import_eddb.js`
 
 You should be good to go!
 
