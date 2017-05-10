@@ -6,6 +6,16 @@ const csv = require('csv-parser');
 const StreamFromIterator = require('stream-from-iterator');
 const config = require(__base+'/config.json');
 const store = require(__base+'/lib/store.js');
+
+const eddb_fixups = {
+	"Animalmeat": "Animal Meat",
+	"CMM Composite": "C M M Composite",
+	"Fruit And Vegetables": "Fruit and Vegetables",
+	"Hazardous Environment Suits": "H.E. Suits",
+	"Low Temperature Diamond": "Low Temperature Diamonds",
+	"Non Lethal Weapons": "Non-lethal Weapons",
+	"Skimer Components": "Skimmer Components"
+};
 const pool = new pg.Pool(config.db);
 
 co(function*() {
@@ -74,7 +84,9 @@ co(function*() {
 	let commodities_file = require(__base+'/eddb/commodities.json');
 	let commodity_names = [];
 	for (var commodity of commodities_file) {
-		commodity_names[+commodity.id] = commodity.name;
+		let name = commodity.name;
+		if (name in eddb_fixups) name = eddb_fixups[name];
+		commodity_names[+commodity.id] = name;
 	}
 	
 	console.log("Inserting listings.");
