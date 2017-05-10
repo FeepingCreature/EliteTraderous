@@ -1,0 +1,30 @@
+{
+  "name": "EliteTraderous",
+  "version": "0.0.1",
+  "description": "Trade Route Calculator for Elite Dangerous, in the style of TradeDangerous",
+  "main": "trade.js",
+  "dependencies": {
+    "co": "^4.6.0",
+    "commander": "^2.9.0",
+    "csv-parser": "^1.11.0",
+    "flushwritable": "^1.0.0",
+    "inquirer": "^3.0.6",
+    "lru-cache": "^4.0.2",
+    "nan": "^2.6.2",
+    "pg": "^6.1.5",
+    "progress": "^2.0.0",
+    "request": "^2.81.0",
+    "request-promise-native": "^1.0.4",
+    "stream-from-iterator": "^1.0.1",
+    "tough-cookie": "^2.3.2"
+  },
+  "author": "FeepingCreature https://github.com/FeepingCreature/",
+  "license": "GPL-3.0",
+  "repository": {
+	"type": "git",
+	"url": "https://github.com/FeepingCreature/EliteTraderous"
+  },
+  "bugs": {
+	"url": "https://github.com/FeepingCreature/EliteTraderous/issues"
+  }
+}

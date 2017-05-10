@@ -1,0 +1,24 @@
+{
+	"db": {
+		"user": "postgres",
+		"database": "elitetraderous",
+		"host": "localhost",
+		"port": 5432
+	},
+	"cachesize": 65536,
+	"defaultOptions-EXAMPLE-remove-this-text-to-enable": {
+		"lyPer": 21,
+		"cap": 112,
+		"maxHops": 8,
+		"import": true,
+		"exclude": ["Slaves", "Imperial Slaves"]
+	},
+	"timings": {
+		"timeInHyperspace": 15,
+		"timeBetweenJumps": 35,
+		"timeToLand": 60,
+		"timeInStation": 50,
+		"timePerResourceTrade": 10,
+		"timeToLeave": 60
+	}
+}
