@@ -402,6 +402,7 @@ co(function*() {
 	yield* db_store.connect();
 	
 	options.planets = true; // default on
+	options.exclude = [];
 	
 	for (key in config.defaultOptions) if (config.defaultOptions.hasOwnProperty(key)) {
 		options[key] = config.defaultOptions[key];
@@ -422,7 +423,7 @@ co(function*() {
 		.option('--import', "Import trade info at startup. --from will default to the current station.")
 		.option('--no-planets', "Don't consider planetary stations.")
 		.option('--run-for <n>', "Instead of searching forever, run for <n> seconds and then exit.")
-		.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; }, [])
+		.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; })
 		.parse(process.argv);
 	
 	if (options.loop) options.to = options.from;
