@@ -1,5 +1,4 @@
 global.__base = __dirname + '/';
-const pg = require('pg');
 const co = require('co');
 const LRU = require("lru-cache")
 let LRUnative;
@@ -14,7 +13,14 @@ const NumberBag = require(__base+'/lib/number_bag.js').NumberBag;
 const config = require(__base+'/config.json');
 const session = require(__base+'/lib/session.js');
 const store = require(__base+'/lib/store.js');
-const pool = new pg.Pool(config.db);
+
+function ilike(a, b) {
+	if (config.db_type == 'sqlite') {
+		return 'lower('+a+') like lower('+b+')';
+	} else {
+		return a+' ilike '+b;
+	}
+}
 
 // find the station matching a location string
 function* lookupLocation(db_store, loc) {
@@ -25,7 +31,7 @@ function* lookupLocation(db_store, loc) {
 		// pure station search
 		rows = yield* db_store.querySync(
 			' select '+(new db_store.Station()).schema.attrString+' '
-			+'from station where name ilike $1',
+			+'from station where '+ilike('name', db_store.parameter(0)),
 			['%'+loc+'%']
 		);
 	} else {
@@ -34,8 +40,8 @@ function* lookupLocation(db_store, loc) {
 			' select '+(new db_store.Station()).schema.attrString+' '
 			+'from station '
 			+'join system on station.system_id = system.id '
-			+'where system.name ilike $1 '
-			+'and station.name ilike $2',
+			+'where '+ilike('system.name', db_store.parameter(0))+' '
+			+'and '+ilike('station.name', db_store.parameter(1)),
 			['%'+system+'%', '%'+station+'%']
 		);
 	}
@@ -263,6 +269,7 @@ function sampleHop_getNextStation(systems, jumps, forceTargetBag, forceTargetSta
 			}
 		}
 		console.log("target station "+forceTargetStation+" not found in systems "+Object.keys(systems).join(", "));
+		throw new Error("??");
 		return null;
 	} else {
 		const system_keys = Object.keys(systems);
@@ -391,8 +398,8 @@ function* refine(db_store, options) {
 }
 
 co(function*() {
-	const client = yield pool.connect();
-	const db_store = new store.Store(client);
+	const db_store = new store.Store();
+	yield* db_store.connect();
 	
 	options.planets = true; // default on
 	
@@ -432,6 +439,7 @@ co(function*() {
 		const session_obj = new session.Session();
 		const profile = yield* session_obj.load_profile();
 		yield* db_store.Trade.import_profile(profile);
+		// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
 		
 		if (options.from == null) {
 			options.from = profile.lastSystem.name+"/"+profile.lastStarport.name;

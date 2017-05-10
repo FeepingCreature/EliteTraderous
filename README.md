@@ -11,8 +11,10 @@ Written in Node.js; requires a PostgreSQL server for system and trade data.
 
 1. Install Node.js and make sure you have it in your path by opening a command line (`cmd.exe`), then running `node -v`
 2. Install the required packages by running `npm install` in the EliteTraderous folder
-3. Install PostgreSQL and create a database for the program
+3. **Optionally**, install PostgreSQL and create a database for the program
    * Configure your database's settings in `config.json`
+   * See the bottom of this page for an example configuration
+   * By default, we'll create a Sqlite database, which runs a little slower (but not much)
 4. Initialize the program's tables by running `node create_db.js`
 5. Import the current system and market data from eddb.io
    * Run `node fetch.js` in folder eddb to download the eddb.io dumps
@@ -47,5 +49,21 @@ For instance, "HIP 13569/Jones' Pride" can be shortened to "13569/Jones".
 * --no-planets : Don't consider landing on planetary stations. (`"planets": false` in config.json)
 * --run-for <n> : Normally, EliteTraderous searches until you hit Control+C. With this flag, it will run for `n` seconds and then print the best route found so far.`
 * --exclude <text> : Exclude a good from trading. Useful for forbidden goods. Can be specified multiple times; must be exact.
+
+# Example configuration for Sqlite
+
+    	"db_type": "sqlite",
+    	"db": "data.sqlite",
+
+# Example configuration for PostgreSQL
+
+    	"db_type": "postgresql",
+    	"db": {
+    		"user": "postgres",
+    		"database": "elitetraderous",
+    		"host": "localhost",
+    		"port": 5432
+    	},
+
 
 Fly safe, commander!

@@ -1,10 +1,6 @@
 {
-	"db": {
-		"user": "postgres",
-		"database": "elitetraderous",
-		"host": "localhost",
-		"port": 5432
-	},
+	"db_type": "sqlite",
+	"db": "data.sqlite",
 	"cachesize": 65536,
 	"defaultOptions-EXAMPLE-remove-this-text-to-enable": {
 		"lyPer": 21,

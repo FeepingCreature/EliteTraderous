@@ -1,5 +1,4 @@
 global.__base = __dirname + '/';
-const pg = require('pg');
 const co = require('co');
 const fs = require('fs');
 const csv = require('csv-parser');
@@ -16,11 +15,10 @@ const eddb_fixups = {
 	"Non Lethal Weapons": "Non-lethal Weapons",
 	"Skimer Components": "Skimmer Components"
 };
-const pool = new pg.Pool(config.db);
 
 co(function*() {
-	const client = yield pool.connect();
-	const db_store = new store.Store(client);
+	const db_store = new store.Store();
+	yield* db_store.connect();
 	
 	console.log("Inserting systems.");
 	const systems = require(__base+'/eddb/systems_populated.json');
@@ -34,13 +32,19 @@ co(function*() {
 			const [index, system]  = pair;
 			system_names[system.id] = system.name;
 			
-			let position = '('+system.x+', '+system.y+', '+system.z+')';
-			let db_system = new db_store.System({
+			let attrs = {
 				id: system.id,
 				name: system.name,
-				position: position,
 				needs_permit: system.needs_permit
-			});
+			};
+			if (config.db_type == 'postgresql') {
+				attrs.position = '('+system.x+', '+system.y+', '+system.z+')';
+			} else {
+				attrs.position_x = system.x;
+				attrs.position_y = system.y;
+				attrs.position_z = system.z;
+			}
+			let db_system = new db_store.System(attrs);
 			db_system.save();
 		})).on('finish', resolve).on('error', reject);
 	});
@@ -106,7 +110,7 @@ co(function*() {
 			
 			let trade = new db_store.Trade({
 				station_id: +record.station_id,
-				id: null,
+				id: +record.id,
 				name: commodity_names[+record.commodity_id],
 				buyPrice: +record.buy_price,
 				sellPrice: +record.sell_price,

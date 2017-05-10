@@ -15,16 +15,17 @@
     "progress": "^2.0.0",
     "request": "^2.81.0",
     "request-promise-native": "^1.0.4",
+    "sqlite": "^2.7.0",
     "stream-from-iterator": "^1.0.1",
     "tough-cookie": "^2.3.2"
   },
   "author": "FeepingCreature https://github.com/FeepingCreature/",
   "license": "GPL-3.0",
   "repository": {
-	"type": "git",
-	"url": "https://github.com/FeepingCreature/EliteTraderous"
+    "type": "git",
+    "url": "https://github.com/FeepingCreature/EliteTraderous"
   },
   "bugs": {
-	"url": "https://github.com/FeepingCreature/EliteTraderous/issues"
+    "url": "https://github.com/FeepingCreature/EliteTraderous/issues"
   }
 }

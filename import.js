@@ -1,15 +1,14 @@
 global.__base = __dirname + '/';
-const pg = require('pg');
 const fs = require('fs');
 const session = require(__base+'/lib/session.js');
 const config = require(__base+'/config.json');
 const store = require(__base+'/lib/store.js');
-const pool = new pg.Pool(config.db);
 
 require('co')(function*() {
 	const session_obj = new session.Session();
-	const client = yield pool.connect();
-	const db_store = new store.Store(client);
+	
+	const db_store = new store.Store();
+	yield* db_store.connect();
 	
 	const profile = yield* session_obj.load_profile();
 	yield* db_store.Trade.import_profile(profile);
