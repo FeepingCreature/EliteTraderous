@@ -18,7 +18,7 @@ Written in Node.js; requires a PostgreSQL server for system and trade data.
 4. Initialize the program's tables by running `node create_db.js`
 5. Import the current system and market data from eddb.io
    * Run `node fetch.js` in folder eddb to download the eddb.io dumps
-   * Import the dumps by running `node import_eddb.js`
+   * Import the dumps by running `node eddb_import.js`
 
 You should be good to go!
 
