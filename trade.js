@@ -433,7 +433,6 @@ co(function*() {
     .option('--min-time <n>', "Only output routes that take longer than <n> seconds to run.", parseInt)
 		.parse(process.argv);
 	
-	if (options.loop) options.to = options.from;
 	if (options.hops && options.maxHops) {
 		options.errorWithStyle("conflicting flags, --max-hops overrides the effect of --hops.");
 	}
@@ -453,6 +452,7 @@ co(function*() {
 			options.from = profile.lastSystem.name+"/"+profile.lastStarport.name;
 		}
 	}
+	if (options.loop) options.to = options.from;
 	
 	if (!options.from) {
 		options.errorWithStyle(function() {
