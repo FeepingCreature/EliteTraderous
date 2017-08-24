@@ -329,6 +329,11 @@ Route.prototype.toString = function() {
 	+Math.floor(gain_per_time).toLocaleString()+"cr/s";
 };
 
+Route.prototype.valid = function() {
+  if (options.minTime == null) return true;
+  return this.sum_flight_time > options.minTime;
+};
+
 // create a route by random search
 function* sample(db_store, options) {
 	const trades = [];
@@ -381,7 +386,7 @@ function* mutate(db_store, options, route) {
 // would get to benefit from mutations.
 function* refine(db_store, options) {
 	let bestRoute = yield* sample(db_store, options);
-	if (!bestRoute) return [null, 0];
+	if (!bestRoute || !bestRoute.valid()) return [null, 0];
 	
 	let k = 0;
 	for (let i = 0; i < 128; i++, k++) {
@@ -389,7 +394,7 @@ function* refine(db_store, options) {
 		if (k < 128) route = yield* sample(db_store, options); // find a reasonable route to start
 		else route = yield* mutate(db_store, options, bestRoute); // then refine it further
 		
-		if (!route) continue;
+		if (!route || !route.valid()) continue;
 		if (route.betterThan(bestRoute)) {
 			bestRoute = route;
 			i = 0;
@@ -425,6 +430,7 @@ co(function*() {
 		.option('--no-planets', "Don't consider planetary stations.")
 		.option('--run-for <n>', "Instead of searching forever, run for <n> seconds and then exit.")
 		.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; })
+    .option('--min-time <n>', "Only output routes that take longer than <n> seconds to run.", parseInt)
 		.parse(process.argv);
 	
 	if (options.loop) options.to = options.from;
