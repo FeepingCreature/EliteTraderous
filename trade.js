@@ -445,7 +445,7 @@ co(function*() {
 	if (options.import) {
 		const session_obj = new session.Session();
 		const profile = yield* session_obj.load_profile();
-		yield* db_store.Trade.import_profile(profile);
+		yield* db_store.Trade.import(profile, session_obj);
 		// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
 		
 		if (options.from == null) {

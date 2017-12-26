@@ -11,7 +11,7 @@ require('co')(function*() {
 	yield* db_store.connect();
 	
 	const profile = yield* session_obj.load_profile();
-	yield* db_store.Trade.import_profile(profile);
+	yield* db_store.Trade.import(profile, session_obj);
 	
 	// fs.writeFileSync("profile.json", JSON.stringify(profile, null, 2));
 	
