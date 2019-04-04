@@ -1,4 +1,5 @@
 global.__base = __dirname + '/';
+
 const co = require('co');
 const LRU = require("lru-cache")
 let LRUnative;
@@ -153,6 +154,8 @@ const lookupLocationMemo = new FunctionCache();
 function* lookupLocationCached(db_store, loc) {
 	return yield* lookupLocationMemo.ize(loc, lookupLocation.bind(this, db_store, loc));
 }
+
+module.exports.lookupLocationCached = lookupLocationCached;
 
 const lookupSystemsWithStationsInRangeMemo = new FunctionCache();
 function* lookupSystemsWithStationsInRangeCached(db_store, options, system) {
@@ -316,6 +319,7 @@ function Route(trades) {
 	}
 	this.gain_per_sec = this.sum_flight_time ? (this.sum_gain / this.sum_flight_time) : 0;
 }
+module.exports.Route = Route;
 
 Route.prototype.betterThan = function(route2) {
 	if (!route2) return true;
@@ -402,102 +406,106 @@ function* refine(db_store, options) {
 	}
 	return [bestRoute, k];
 }
+module.exports.refine = refine;
 
-co(function*() {
-	const db_store = new store.Store();
-	yield* db_store.connect();
-	
-	options.planets = true; // default on
-	options.exclude = [];
-	
-	for (key in config.defaultOptions) if (config.defaultOptions.hasOwnProperty(key)) {
-		options[key] = config.defaultOptions[key];
-	}
-	
-	options
-		.version(require(__base+'/package.json').version)
-		.optionRequired('--ly-per <n>', "Lightyears per jump (minimum)", parseInt)
-		// .optionRequired('--cr <n>', "Credits budget for trading", parseInt)
-		.optionRequired('--cap <n>', "Cargo capacity available", parseInt)
-		.option('--from <text>', "Starting location")
-		.option('--to <text>', "Target location")
-		.option('--loop', "Return to the starting station")
-		.option('--pad-size <text>', "Minimum pad size on the station")
-		.option('--jumps-per <n>', "Maximum number of jumps from system to system")
-		.option('--hops <n>', "Hops to search for", parseInt)
-		.option('--max-hops <n>', "Max number of hops to search for", parseInt)
-		.option('--import', "Import trade info at startup. --from will default to the current station.")
-		.option('--no-planets', "Don't consider planetary stations.")
-		.option('--run-for <n>', "Instead of searching forever, run for <n> seconds and then exit.")
-		.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; })
-    .option('--min-time <n>', "Only output routes that take longer than <n> seconds to run.", parseInt)
-		.parse(process.argv);
-	
-	if (options.hops && options.maxHops) {
-		options.errorWithStyle("conflicting flags, --max-hops overrides the effect of --hops.");
-	}
-	if (!options.hops) options.hops = 1;
-	if (!options.jumpsPer) options.jumpsPer = 1;
-	
-	options._excludeMap = Object.create(null);
-	for (const exclude of options.exclude) options._excludeMap[exclude] = true;
-	
-	if (options.import) {
-		const session_obj = new session.Session();
-		const profile = yield* session_obj.load_profile();
-		yield* db_store.Trade.import(profile, session_obj);
-		// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
+if (require.main === module)
+{
+	co(function*() {
+		const db_store = new store.Store();
+		yield* db_store.connect();
 		
-		if (options.from == null) {
-			options.from = profile.lastSystem.name+"/"+profile.lastStarport.name;
+		options.planets = true; // default on
+		options.exclude = [];
+		
+		for (key in config.defaultOptions) if (config.defaultOptions.hasOwnProperty(key)) {
+			options[key] = config.defaultOptions[key];
 		}
-	}
-	if (options.loop) options.to = options.from;
-	
-	if (!options.from) {
-		options.errorWithStyle(function() {
-			options.errorRequiredOptionMissing('from');
-		});
-	};
-	
-	const startStation = yield* lookupLocationCached(db_store, options.from);
-	const endStation = yield* lookupLocationCached(db_store, options.to);
-	
-	options._backwardConstraintMap = null;
-	if (options.to) {
-		const [systems, jumps] = yield* lookupSystemRangeMap(db_store, options, Math.min(4, options.jumpsPer * options.hops), true, endStation.system);
-		options._backwardConstraintSet = jumps;
-	}
-	
-	console.log("Searching for trades...");
-	
-	let count = 0;
-	let bestRoute = null;
-	function time() { return (new Date()).getTime(); }
-	let lastImproveTime = time(), startTime = time();
-	while (true) {
-		if (options.maxHops) options.hops = Math.floor(Math.random() * (options.maxHops + 1)); // lol
-		const [route, k] = yield* refine(db_store, options);
-		if (!route) continue;
-		const timeSinceStart = (time() - startTime)/1000;
-		if (route.betterThan(bestRoute)) {
-			if (!options.runFor) {
-				console.log("After "+Math.floor(timeSinceStart)+"s: Improve to:  ("+Math.floor(count*1000/(time() - lastImproveTime))+"/s)");
-				console.log(route.toString());
+		
+		options
+			.version(require(__base+'/package.json').version)
+			.optionRequired('--ly-per <n>', "Lightyears per jump (minimum)", parseInt)
+			// .optionRequired('--cr <n>', "Credits budget for trading", parseInt)
+			.optionRequired('--cap <n>', "Cargo capacity available", parseInt)
+			.option('--from <text>', "Starting location")
+			.option('--to <text>', "Target location")
+			.option('--loop', "Return to the starting station")
+			.option('--pad-size <text>', "Minimum pad size on the station")
+			.option('--jumps-per <n>', "Maximum number of jumps from system to system")
+			.option('--hops <n>', "Hops to search for", parseInt)
+			.option('--max-hops <n>', "Max number of hops to search for", parseInt)
+			.option('--import', "Import trade info at startup. --from will default to the current station.")
+			.option('--no-planets', "Don't consider planetary stations.")
+			.option('--run-for <n>', "Instead of searching forever, run for <n> seconds and then exit.")
+			.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; })
+			.option('--min-time <n>', "Only output routes that take longer than <n> seconds to run.", parseInt)
+			.parse(process.argv);
+		
+		if (options.hops && options.maxHops) {
+			options.errorWithStyle("conflicting flags, --max-hops overrides the effect of --hops.");
+		}
+		if (!options.hops) options.hops = 1;
+		if (!options.jumpsPer) options.jumpsPer = 1;
+		
+		options._excludeMap = Object.create(null);
+		for (const exclude of options.exclude) options._excludeMap[exclude] = true;
+		
+		if (options.import) {
+			const session_obj = new session.Session();
+			const profile = yield* session_obj.load_profile();
+			yield* db_store.Trade.import(profile, session_obj);
+			// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
+			
+			if (options.from == null) {
+				options.from = profile.lastSystem.name+"/"+profile.lastStarport.name;
 			}
-			lastImproveTime = time();
-			count = 0;
-			bestRoute = route;
 		}
-		// find at least *any* route before stopping
-		if (bestRoute && timeSinceStart > options.runFor) break;
-		count += k;
-	}
-	
-	console.log(bestRoute.toString());
-	
-	process.exit(0);
-}).catch(function(err) {
-	console.error(err.stack);
-	process.exit(1);
-});
+		if (options.loop) options.to = options.from;
+		
+		if (!options.from) {
+			options.errorWithStyle(function() {
+				options.errorRequiredOptionMissing('from');
+			});
+		};
+		
+		const startStation = yield* lookupLocationCached(db_store, options.from);
+		const endStation = yield* lookupLocationCached(db_store, options.to);
+		
+		options._backwardConstraintMap = null;
+		if (options.to) {
+			const [systems, jumps] = yield* lookupSystemRangeMap(db_store, options, Math.min(4, options.jumpsPer * options.hops), true, endStation.system);
+			options._backwardConstraintSet = jumps;
+		}
+		
+		console.log("Searching for trades...");
+		
+		let count = 0;
+		let bestRoute = null;
+		function time() { return (new Date()).getTime(); }
+		let lastImproveTime = time(), startTime = time();
+		while (true) {
+			if (options.maxHops) options.hops = Math.floor(Math.random() * (options.maxHops + 1)); // lol
+			const [route, k] = yield* refine(db_store, options);
+			if (!route) continue;
+			const timeSinceStart = (time() - startTime)/1000;
+			if (route.betterThan(bestRoute)) {
+				if (!options.runFor) {
+					console.log("After "+Math.floor(timeSinceStart)+"s: Improve to:  ("+Math.floor(count*1000/(time() - lastImproveTime))+"/s)");
+					console.log(route.toString());
+				}
+				lastImproveTime = time();
+				count = 0;
+				bestRoute = route;
+			}
+			// find at least *any* route before stopping
+			if (bestRoute && timeSinceStart > options.runFor) break;
+			count += k;
+		}
+		
+		console.log(bestRoute.toString());
+		
+		process.exit(0);
+	}).catch(function(err) {
+		console.error(err.stack);
+		process.exit(1);
+	});
+}
