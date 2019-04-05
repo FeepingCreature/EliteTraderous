@@ -19,7 +19,7 @@ const eddb_fixups = {
 co(function*() {
 	const db_store = new store.Store();
 	yield* db_store.connect();
-	
+
 	console.log("Inserting systems.");
 	const systems = require(__base+'/eddb/systems_populated.json');
 	const duplicate_name_check = {};
@@ -27,11 +27,11 @@ co(function*() {
 	yield new Promise(function(resolve, reject) {
 		let systems_iterator = new StreamFromIterator(systems.entries(), {objectMode: true});
 		db_store.expected_records = systems.length;
-		
+
 		systems_iterator.pipe(new db_store.FlushStream(function(pair) {
 			const [index, system]  = pair;
 			system_names[system.id] = system.name;
-			
+
 			let attrs = {
 				id: system.id,
 				name: system.name,
@@ -48,7 +48,7 @@ co(function*() {
 			db_system.save();
 		})).on('finish', resolve).on('error', reject);
 	});
-	
+
 	console.log("Inserting stations.");
 	const stations = require(__base+'/eddb/stations.json');
 	const station_names = {};
@@ -57,21 +57,21 @@ co(function*() {
 		db_store.expected_records = stations.length;
 		stations_iterator.pipe(new db_store.FlushStream(function(pair) {
 			const [index, station] = pair;
-			
+
 			if (!system_names[station.system_id]) {
 				console.log("missing system id "+station.system_id);
 				return;
 			}
-			
+
 			station_names[station.id] = station.name;
-			
+
 			let combine_name = system_names[station.system_id] + "/" + station.name;
 			if (duplicate_name_check[combine_name]) {
 				console.log("duplicate system/station name "+combine_name);
 				return;
 			}
 			duplicate_name_check[combine_name] = true;
-			
+
 			let db_station = new db_store.Station({
 				id: station.id,
 				system_id: station.system_id,
@@ -84,15 +84,24 @@ co(function*() {
 			db_station.save();
 		})).on('finish', resolve).on('error', reject);
 	});
-	
+
 	let commodities_file = require(__base+'/eddb/commodities.json');
 	let commodity_names = [];
+	let categories = {};
 	for (var commodity of commodities_file) {
 		let name = commodity.name;
 		if (name in eddb_fixups) name = eddb_fixups[name];
 		commodity_names[+commodity.id] = name;
+		categories[name] = commodity.category.name;
 	}
-	
+
+	console.log("Inserting categories.");
+	for ([name, categoryName] of Object.entries(categories)) {
+		let category = new db_store.Category(name, categoryName);
+
+		category.save();
+	}
+
 	console.log("Inserting listings.");
 	yield new Promise(function(resolve, reject) {
 		db_store.expected_records = 3000000; // estimate
@@ -102,12 +111,12 @@ co(function*() {
 		.pipe(csv())
 		.pipe(new db_store.FlushStream(function(record) {
 			// if (index % 10000 == 0) console.log("> "+index+" "+JSON.stringify(record));
-			
+
 			if (!station_names[+record.station_id]) {
 				console.log("Invalid record: station "+record.station_id+" not known!");
 				return;
 			}
-			
+
 			let trade = new db_store.Trade({
 				station_id: +record.station_id,
 				id: +record.id,

@@ -18,6 +18,7 @@
     "progress": "^2.0.0",
     "request": "^2.81.0",
     "request-promise-native": "^1.0.4",
+    "say": "^0.15.0",
     "simple-oauth2": "^2.2.1",
     "sqlite": "^2.7.0",
     "stream-from-iterator": "^1.0.1",

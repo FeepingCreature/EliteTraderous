@@ -26,7 +26,7 @@ function ilike(a, b) {
 // find the station matching a location string
 function* lookupLocation(db_store, loc) {
 	if (!loc) return null;
-	
+
 	let rows;
 	if (loc.indexOf("/") == -1) {
 		// pure station search
@@ -84,13 +84,13 @@ function JumpSet(jumpsPer) {
 // system1 is reachable in 1 jump, it also counts as reachable in 2, 3 and 4 jumps.
 function* lookupSystemRangeMap(db_store, options, num_jumps, inclusive, system) {
 	const System = new db_store.System;
-	
+
 	let systems = Object.create(null);
 	systems[system.id] = system;
-	
+
 	let jumps = new JumpSet(num_jumps);
 	jumps.setSystems(0, [+system.id]);
-	
+
 	let jump_ids = [];
 	for (let i = 0; i < num_jumps; i++) {
 		const isLastJump = i == num_jumps - 1;
@@ -110,7 +110,7 @@ function* lookupSystemRangeMap(db_store, options, num_jumps, inclusive, system) 
 function* lookupSystemsWithStationsInRange(db_store, options, system) {
 	const [systems, jumps] = yield* lookupSystemRangeMap(db_store, options, options.jumpsPer, false, system);
 	const Station = new db_store.Station;
-	
+
 	const systems_stations = {};
 	const system_ids = [];
 	for (const key in systems) {
@@ -121,13 +121,13 @@ function* lookupSystemsWithStationsInRange(db_store, options, system) {
 			systems[key].stations = SystemStationCache[key] = {}; // will be filled in below
 		}
 	}
-	
+
 	if (system_ids.length) {
 		const filter = {system_id: system_ids};
 		if (options.padSize == 'L') filter['max_landing_pad_size'] = 'L';
 		else if (options.padSize == 'M') filter['max_landing_pad_size'] = ['L', 'M'];
 		if (!options.planets) filter['is_planetary'] = false;
-			
+
 		stations = yield* Station.findAll(filter);
 		for (const key in stations) {
 			stations[key].system = systems[stations[key].system_id];
@@ -166,7 +166,7 @@ function* lookupSystemsWithStationsInRangeCached(db_store, options, system) {
 // model to estimate how long a trade will take to execute
 function estimateTiming(trade) {
 	const timings = config.timings;
-	
+
 	let res = 0;
 	res += timings.timePerResourceTrade * trade.num_trades; // buy
 	res += timings.timeToLeave; // depart
@@ -183,10 +183,11 @@ function estimateTiming(trade) {
 }
 
 // object representing a single trade, buy to sell
-function Trade(station1, station2, key, gain, stock, num_jumps, num_trades) {
+function Trade(station1, station2, key, categories, gain, stock, num_jumps, num_trades) {
 	this.from = station1;
 	this.to = station2;
 	this.key = key;
+	this.categories = categories;
 	this.gain = gain;
 	this.stock = stock;
 	this.num_jumps = num_jumps;
@@ -197,7 +198,9 @@ function Trade(station1, station2, key, gain, stock, num_jumps, num_trades) {
 		return this.gain > trade2.gain;
 	};
 	this.toString = function() {
-		return this.from.prettyName()+" -> "+this.to.prettyName()+" ["+this.key+" +"+this.gain.toLocaleString()+"]";
+		return this.from.prettyName()+" -> "+
+			this.to.prettyName()+
+			" ["+JSON.stringify(this.key)+" +"+this.gain.toLocaleString()+"]";
 	};
 }
 
@@ -206,6 +209,7 @@ const stationTradesMemo = new FunctionCache();
 // separate function to allow vm optimization
 function findBestTrade_rest(station1, station2, options, num_jumps, trades1, trades2) {
 	const trade1_comm = Object.create(null), trade2_comm = Object.create(null);
+	let categories = {};
 	for (var key in trades1) {
 		trade1_comm[trades1[key].name] = trades1[key];
 	}
@@ -220,28 +224,49 @@ function findBestTrade_rest(station1, station2, options, num_jumps, trades1, tra
 	const stockOverlay = Object.create(null);
 	while (capLeft && trades.length < 4) {
 		let bestTrade = null;
+		let bestKey = null;
 		for (var key in trade2_comm) {
 			const buy = trade1_comm[key];
 			const sell = trade2_comm[key];
+			categories[buy.name] = buy.category;
+			categories[sell.name] = buy.category;
 			let buystock = buy.stock;
 			if (typeof stockOverlay[key] !== 'undefined') buystock = stockOverlay[key];
 			const numTrade = Math.min(capLeft, buystock);
-			const trade = new Trade(station1, station2, key, numTrade * (sell.sellPrice - buy.buyPrice), numTrade, num_jumps, 1);
-			if (trade.betterThan(bestTrade)) bestTrade = trade;
+			const trade = new Trade(
+				station1, station2,
+				{[key]: numTrade},
+				categories,
+				numTrade * (sell.sellPrice - buy.buyPrice),
+				numTrade, num_jumps, 1
+			);
+			if (trade.betterThan(bestTrade)) {
+				bestTrade = trade;
+				bestKey = key;
+			}
 		}
 		if (!bestTrade || !bestTrade.stock/* || bestTrade.gain < 0*/) break;
-		if (!(bestTrade.key in stockOverlay)) stockOverlay[bestTrade.key] = trade1_comm[bestTrade.key];
-		
-		stockOverlay[bestTrade.key] -= bestTrade.stock;
+		if (!(bestKey in stockOverlay)) stockOverlay[bestKey] = trade1_comm[bestKey];
+
+		stockOverlay[bestKey] -= bestTrade.stock;
 		capLeft -= bestTrade.stock;
 		trades.push(bestTrade);
 	}
-	// if (trades.length == 0) return new Trade(station1, station2, "Nothing", 0, 0, num_jumps, 0);
+	// if (trades.length == 0) return new Trade(
+		// station1, station2, ["Nothing"], categories, 0, 0, num_jumps, 0);
 	if (trades.length == 0) return null;
 	if (trades.length == 1) return trades[0];
 	let sum_gain = 0, sum_trade = 0;
-	const composite_key = trades.map(function(trade) { sum_gain += trade.gain; sum_trade += trade.stock; return trade.key+" ("+trade.stock+")"; }).join(", ");
-	return new Trade(station1, station2, composite_key, sum_gain, sum_trade, num_jumps, trades.length);
+	const composite_key = Object.assign({}, ...trades.map((trade) => {
+		sum_gain += trade.gain;
+		sum_trade += trade.stock;
+		return trade.key;
+	}));
+	return new Trade(
+		station1, station2,
+		composite_key, categories,
+		sum_gain, sum_trade, num_jumps, trades.length
+	);
 }
 
 function* findBestTrade(db_store, station1, station2, options, num_jumps) {
@@ -267,7 +292,7 @@ function sampleHop_getNextStation(systems, jumps, forceTargetBag, forceTargetSta
 		if (!anySystemsFound) return null;
 		systems = systems2;
 	}
-	
+
 	if (forceTargetStation) {
 		for (const key in systems) {
 			if (typeof systems[key].stations[forceTargetStation.id] !== 'undefined') {
@@ -278,10 +303,10 @@ function sampleHop_getNextStation(systems, jumps, forceTargetBag, forceTargetSta
 	} else {
 		const system_keys = Object.keys(systems);
 		if (!system_keys.length) return null;
-		
+
 		const index1 = Math.floor(Math.random() * system_keys.length);
 		const system = systems[system_keys[index1]];
-		
+
 		const station_keys = Object.keys(system.stations);
 		if (!station_keys.length) return null;
 		const index2 = Math.floor(Math.random() * station_keys.length);
@@ -364,23 +389,23 @@ function* sample(db_store, options) {
 // create a route by changing a single step
 function* mutate(db_store, options, route) {
 	if (route.length < 2) return null;
-	
+
 	const redo_index = Math.floor(Math.random() * (route.length - 1));
 	// trade 0 is 0-1, trade 1 is 1-2
 	// to redo trade n, generate a new hop for n, then a successor constrained to the <to> of n+1
 	const trades = route.trades.slice(0);
-	
+
 	const [_bogus, jumps] = yield* lookupSystemRangeMap(db_store, options, options.jumpsPer, true, trades[redo_index+1].to.system);
-	
+
 	let trade1 = yield* sampleHop(db_store, trades[redo_index].from, options, jumps.bags[options.jumpsPer]);
 	if (!trade1) return null; // no trades found
-	
+
 	let trade2 = yield* sampleHop(db_store, trade1.to, options, null, trades[redo_index+1].to);
 	if (!trade2) return null; // no trades found
-	
+
 	trades[redo_index] = trade1;
 	trades[redo_index + 1] = trade2;
-	
+
 	return new Route(trades);
 }
 
@@ -391,13 +416,13 @@ function* mutate(db_store, options, route) {
 function* refine(db_store, options) {
 	let bestRoute = yield* sample(db_store, options);
 	if (!bestRoute || !bestRoute.valid()) return [null, 0];
-	
+
 	let k = 0;
 	for (let i = 0; i < 128; i++, k++) {
 		let route;
 		if (k < 128) route = yield* sample(db_store, options); // find a reasonable route to start
 		else route = yield* mutate(db_store, options, bestRoute); // then refine it further
-		
+
 		if (!route || !route.valid()) continue;
 		if (route.betterThan(bestRoute)) {
 			bestRoute = route;
@@ -413,14 +438,14 @@ if (require.main === module)
 	co(function*() {
 		const db_store = new store.Store();
 		yield* db_store.connect();
-		
+
 		options.planets = true; // default on
 		options.exclude = [];
-		
+
 		for (key in config.defaultOptions) if (config.defaultOptions.hasOwnProperty(key)) {
 			options[key] = config.defaultOptions[key];
 		}
-		
+
 		options
 			.version(require(__base+'/package.json').version)
 			.optionRequired('--ly-per <n>', "Lightyears per jump (minimum)", parseInt)
@@ -439,45 +464,45 @@ if (require.main === module)
 			.option('--exclude <text>', "Excludes the good from trading", function(v, a) { a.push(v); return a; })
 			.option('--min-time <n>', "Only output routes that take longer than <n> seconds to run.", parseInt)
 			.parse(process.argv);
-		
+
 		if (options.hops && options.maxHops) {
 			options.errorWithStyle("conflicting flags, --max-hops overrides the effect of --hops.");
 		}
 		if (!options.hops) options.hops = 1;
 		if (!options.jumpsPer) options.jumpsPer = 1;
-		
+
 		options._excludeMap = Object.create(null);
 		for (const exclude of options.exclude) options._excludeMap[exclude] = true;
-		
+
 		if (options.import) {
 			const session_obj = new session.Session();
 			const profile = yield* session_obj.load_profile();
 			yield* db_store.Trade.import(profile, session_obj);
-			// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
-			
+			require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
+
 			if (options.from == null) {
 				options.from = profile.lastSystem.name+"/"+profile.lastStarport.name;
 			}
 		}
 		if (options.loop) options.to = options.from;
-		
+
 		if (!options.from) {
 			options.errorWithStyle(function() {
 				options.errorRequiredOptionMissing('from');
 			});
 		};
-		
+
 		const startStation = yield* lookupLocationCached(db_store, options.from);
 		const endStation = yield* lookupLocationCached(db_store, options.to);
-		
+
 		options._backwardConstraintMap = null;
 		if (options.to) {
 			const [systems, jumps] = yield* lookupSystemRangeMap(db_store, options, Math.min(4, options.jumpsPer * options.hops), true, endStation.system);
 			options._backwardConstraintSet = jumps;
 		}
-		
+
 		console.log("Searching for trades...");
-		
+
 		let count = 0;
 		let bestRoute = null;
 		function time() { return (new Date()).getTime(); }
@@ -500,9 +525,9 @@ if (require.main === module)
 			if (bestRoute && timeSinceStart > options.runFor) break;
 			count += k;
 		}
-		
+
 		console.log(bestRoute.toString());
-		
+
 		process.exit(0);
 	}).catch(function(err) {
 		console.error(err.stack);
