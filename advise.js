@@ -43,7 +43,7 @@ co(function*() {
 	const profile = yield* session_obj.load_profile();
 	// require('fs').writeFileSync("profile.json", JSON.stringify(profile, null, 2));
 
-	if (!profile.commander.docked) {
+	function* jumpAdvice(prefix = "") {
 		function nato(text) {
 			phoneticAlphabet = {
 				A: 'Alfa', B: 'Bravo', C: 'Charlie', D: 'Delta', E: 'Echo',
@@ -70,9 +70,12 @@ co(function*() {
 			yield* say("No known route.");
 			process.exit(0);
 		}
-		yield* say("Jump to " + chosenRoute.to.system +
+		yield* say(prefix + " jump to " + chosenRoute.to.system +
 			"; that is " + nato(chosenRoute.to.system) +
 			" and dock with " + chosenRoute.to.station);
+	}
+	if (!profile.commander.docked) {
+		yield* jumpAdvice();
 		process.exit(0);
 	}
 
@@ -145,4 +148,5 @@ co(function*() {
 			yield* say("Buy " + count + " of " + name + ". ");
 		}
 	}
+	yield* jumpAdvice("Then");
 });
