@@ -149,4 +149,5 @@ co(function*() {
 		}
 	}
 	yield* jumpAdvice("Then");
+	yield* jumpAdvice(";; Repeat");
 });
